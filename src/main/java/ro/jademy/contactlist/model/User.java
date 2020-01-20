@@ -1,8 +1,6 @@
 package ro.jademy.contactlist.model;
 
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 public class User {
 
@@ -72,6 +70,8 @@ public class User {
         this.isFavorite = isFavorite;
     }
 
+    List<User> contactsList = new ArrayList<>();
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -93,30 +93,23 @@ public class User {
         return Objects.hash(firstName, lastName, email, age, phoneNumbers, address, jobTitle, company, isFavorite);
     }
 
-    String underline = new String(new char[15]).replace('\0', '-');
-
     @Override
     public String toString() {
-        return firstName + " " + lastName + "\n" +
-                underline + "\n" +
-                "PhoneNumbers: " + getPhoneNumbersList() + "\n" +
-                "Email: " + email + "\n" +
-                "Age: " + age + "\n" +
-                "Address: " + address.toString() + "\n" +
-                "JobTitle: " + jobTitle + "\n" +
-                company + "\n" +
-                "isFavorite: " + isFavorite + "\n";
+        return "\033[32;1m\n" + firstName + " " + lastName + (isFavorite ? " ★" : "") + "\n" +
+                new String(new char[firstName.length() + lastName.length() + (isFavorite ? 3 : 1)]).replace('\0',
+                        '-') + "\033[0m\n" +
+                "\033[35;2mPhone Numbers: \n\033[0m" + getPhoneNumbersList() + "\n" +
+                "\033[35;2mEmail: \n\033[0m" + email + "\n" +
+                "\033[35;2mAge: \n\033[0m" + age + "\n" +
+                "\033[35;2mAddress: \n\033[0m" + address.toString() + "\n" +
+                "\033[35;2mJobTitle: \n\033[0m" + jobTitle + "\n" +
+                company + "\n";
     }
 
     public String getPhoneNumbersList() {
-        Set<Map.Entry<String, PhoneNumber>> entries = phoneNumbers.entrySet();
-        for (Map.Entry<String, PhoneNumber> entry : entries) {
+        for (Map.Entry<String, PhoneNumber> entry : phoneNumbers.entrySet()) {
             return entry.getKey() + ": " + entry.getValue();
         }
         return null;
-    }
-
-    public void letter (){
-        System.out.println(firstName.toUpperCase().charAt(0));
     }
 }

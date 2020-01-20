@@ -36,6 +36,6 @@ public class Company {
 
     @Override
     public String toString() {
-        return "Company Name: " + name + ", Company Address: " + address;
+        return "\033[35;2mCompany Name: \n\033[0m" + name + "\n\033[35;2mCompany Address: \n\033[0m" + address;
     }
 }

@@ -74,8 +74,8 @@ public class Address {
     public String toString() {
         return streetNumber + " " +
                 streetName +
-                ", Apartment no " + apartmentNumber +
-                ", " + floor + " Floor " +
+                (apartmentNumber != null ? ", Apartment no " + apartmentNumber : "") +
+                (floor != null ? ", " + floor + " Floor " : "") +
                 ", Zip Code " + zipCode +
                 ", " + city +
                 ", " + country;
