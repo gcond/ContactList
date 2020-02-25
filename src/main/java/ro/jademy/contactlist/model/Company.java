@@ -11,8 +11,18 @@ public class Company {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public Address getAddress() {
         return address;
+    }
+
+    public Company(String name) {
+        this(name, null);
+        //or
+        this.name = name;
     }
 
     public Company(String name, Address address) {
@@ -36,6 +46,7 @@ public class Company {
 
     @Override
     public String toString() {
-        return "\033[35;2mCompany Name: \n\033[0m" + name + "\n\033[35;2mCompany Address: \n\033[0m" + address;
+        return (name != null ? "\033[35;2mCompany Name: \n\033[0m" + name : "") +
+                "\n\033[35;2mCompany Address: \n\033[0m" + address;
     }
 }
