@@ -51,13 +51,7 @@ public class Menu {
         String menuChoice;
         do {
             System.out.print("Your option (1-9): ");
-            menuChoice = sc.nextLine();
-            while (!menuChoice.equals("1") && !menuChoice.equals("2") && !menuChoice.equals("3") && !menuChoice.equals("4") &&
-                    !menuChoice.equals("5") && !menuChoice.equals("6") && !menuChoice.equals("7") && !menuChoice.equals("8") &&
-                    !menuChoice.equals("9")) {
-                System.out.print("Invalid option!\nPlease enter your option again (1-9): ");
-                menuChoice = sc.nextLine();
-            }
+            menuChoice = sc.next();
             switch (menuChoice) {
                 case "1":
                     printContactsNaturalOrder();
@@ -214,6 +208,9 @@ public class Menu {
                                 showPhoneBookMenu();
                         }
                     } while (!option.equals("3"));
+                default:
+                    System.out.print("Invalid option!\nPlease enter your option again (1-9): ");
+                    menuChoice = sc.next();
             }
         } while (!menuChoice.equals("9"));
     }
@@ -245,7 +242,7 @@ public class Menu {
         do {
             showEditMenu();
             System.out.print("Your option (1-8): ");
-            editMenuChoice = sc.nextLine();
+            editMenuChoice = sc.next();
             while (!editMenuChoice.equals("1") && !editMenuChoice.equals("2") && !editMenuChoice.equals("3") && !editMenuChoice.equals(
                     "4") && !editMenuChoice.equals("5") && !editMenuChoice.equals("6") && !editMenuChoice.equals("7") && !editMenuChoice.equals("8")) {
                 System.out.print("Invalid option!\nPlease enter your option again (1-8): ");

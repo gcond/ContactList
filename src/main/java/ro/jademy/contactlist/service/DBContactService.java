@@ -433,7 +433,7 @@ public class DBContactService implements ContactService {
     private String queryContactFromDB() {
         StringBuilder sb = new StringBuilder();
         try {
-            Files.lines(Paths.get("src/main/resources/contactsQuery.txt")).forEach(line -> sb.append(line).append("\n"));
+            Files.lines(Paths.get("src/main/resources/contactsQuery.sql")).forEach(line -> sb.append(line).append("\n"));
         } catch (IOException e) {
             e.printStackTrace();
         }
