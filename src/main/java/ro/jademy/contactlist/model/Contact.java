@@ -5,14 +5,14 @@ import java.util.stream.Collectors;
 
 public class Contact implements Cloneable {
 
-    private static final String DEFAULT_PHONE_NUMBER_GROUP = "Mobile";
+    private static final PhoneTypes DEFAULT_PHONE_NUMBER_GROUP = PhoneTypes.MOBILE;
 
     private String firstName;
     private String lastName;
     private String email;
     private Integer age;
 
-    private Map<String, PhoneNumber> phoneNumbers;
+    private Map<PhoneTypes, PhoneNumber> phoneNumbers;
 
     private Address address;
 
@@ -48,17 +48,25 @@ public class Contact implements Cloneable {
         return age;
     }
 
-    public Map<String, PhoneNumber> getPhoneNumbers() {
+    public Map<PhoneTypes, PhoneNumber> getPhoneNumbers() {
         return phoneNumbers;
     }
-    public void setPhoneNumbers(Map<String, PhoneNumber> phoneNumbers) {
+
+    public void setPhoneNumbers(Map<PhoneTypes, PhoneNumber> phoneNumbers) {
         this.phoneNumbers = phoneNumbers;
     }
-    public void setNumber(String phoneNumber) {
-        if (phoneNumbers.values().stream().findAny().isPresent()) {
-            this.phoneNumbers.values().stream().findAny().get().setNumber(phoneNumber);
-        }
-    }
+
+    //    public Map<String, PhoneNumber> getPhoneNumbers() {
+//        return phoneNumbers;
+//    }
+//    public void setPhoneNumbers(Map<String, PhoneNumber> phoneNumbers) {
+//        this.phoneNumbers = phoneNumbers;
+//    }
+//    public void setNumber(String phoneNumber) {
+//        if (phoneNumbers.values().stream().findAny().isPresent()) {
+//            this.phoneNumbers.values().stream().findAny().get().setNumber(phoneNumber);
+//        }
+//    }
 
     public Address getAddress() {
         return address;
@@ -88,8 +96,11 @@ public class Contact implements Cloneable {
     public Integer getContactId() {
         return contactId;
     }
+    public void setContactId(Integer contactId) {
+        this.contactId = contactId;
+    }
 
-    public Contact(String firstName, String lastName, String email, Integer age, Map<String, PhoneNumber> phoneNumbers,
+    public Contact(String firstName, String lastName, String email, Integer age, Map<PhoneTypes, PhoneNumber> phoneNumbers,
                    Address address, String jobTitle, Company company, boolean isFavorite, Integer contactId) {
         this.firstName = firstName;
         this.lastName = lastName;
@@ -116,9 +127,9 @@ public class Contact implements Cloneable {
         this.contactId = contact.contactId;
     }
 
-    private Map<String, PhoneNumber> copyPhoneNumbers(Map<String, PhoneNumber> original) {
-        Map<String, PhoneNumber> newPhones = new LinkedHashMap<>();
-        for (Map.Entry<String, PhoneNumber> entry : original.entrySet()) {
+    private Map<PhoneTypes, PhoneNumber> copyPhoneNumbers(Map<PhoneTypes, PhoneNumber> original) {
+        Map<PhoneTypes, PhoneNumber> newPhones = new LinkedHashMap<>();
+        for (Map.Entry<PhoneTypes, PhoneNumber> entry : original.entrySet()) {
             newPhones.put(entry.getKey(), new PhoneNumber(entry.getValue()));
         }
 
@@ -135,12 +146,12 @@ public class Contact implements Cloneable {
 //        return contact;
 //    }
 
-    public Contact(String firstName, String lastName, String email, Integer age, Map<String, PhoneNumber> phoneNumbers
+    public Contact(String firstName, String lastName, String email, Integer age, Map<PhoneTypes, PhoneNumber> phoneNumbers
             , Address address, String jobTitle, Company company, Integer contactId) {
         this(firstName, lastName, email, age, phoneNumbers, address, jobTitle, company, false, contactId);
     }
 
-    public Contact(String firstName, String lastName, String email, Map<String, PhoneNumber> phoneNumbers
+    public Contact(String firstName, String lastName, String email, Map<PhoneTypes, PhoneNumber> phoneNumbers
             , boolean isFavorite, Integer contactId) {
         this(firstName, lastName, email, null, phoneNumbers, null, null, null, isFavorite
                 , contactId);
@@ -148,26 +159,25 @@ public class Contact implements Cloneable {
 
 
 
-    public Contact(String firstName, String lastName, String email, PhoneNumber phoneNumber, boolean isFavorite,
-                   Integer contactId) {
+    public Contact(String firstName, String lastName, String email, PhoneNumber phoneNumber, boolean isFavorite) {
 
         this(firstName, lastName, email, null, new LinkedHashMap<>(), null, null, null,
-                isFavorite, contactId);
+                isFavorite, null);
 
         this.phoneNumbers.put(DEFAULT_PHONE_NUMBER_GROUP, phoneNumber); // add the phone number to a default phone number group
     }
 
-    public Contact(String firstName, String lastName, String email, PhoneNumber phoneNumber, Integer contactId) { // simple constructor,
+    public Contact(String firstName, String lastName, String email, PhoneNumber phoneNumber) { // simple constructor,
         // but requiring a PhoneNumber object
 
-        this(firstName, lastName, email, phoneNumber, false, contactId);
+        this(firstName, lastName, email, phoneNumber, false);
     }
 
-    public Contact(String firstName, String lastName, String email, String phoneNumber, Integer contactId) { // simplest
+    public Contact(String firstName, String lastName, String email, String phoneNumber) { // simplest
         // constructor,
         // requiring only the minimal necessary information in literal form
 
-        this(firstName, lastName, email, new PhoneNumber(phoneNumber), false, contactId);
+        this(firstName, lastName, email, new PhoneNumber(phoneNumber), false);
     }
 
     @Override
@@ -225,7 +235,7 @@ public class Contact implements Cloneable {
 
 
     public List<String> getPhoneNumbersList() {
-        return phoneNumbers.entrySet().stream().map(entry -> entry.getKey() + ": " + entry.getValue()).collect(Collectors.toList());
+        return phoneNumbers.entrySet().stream().map(entry -> entry.getKey().getDisplayPhoneType() + ": " + entry.getValue()).collect(Collectors.toList());
     }
 
     public String getPhoneNumbersAsString() {

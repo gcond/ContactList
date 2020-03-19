@@ -1,10 +1,8 @@
 package ro.jademy.contactlist.service;
 
-import ro.jademy.contactlist.model.Address;
-import ro.jademy.contactlist.model.Company;
-import ro.jademy.contactlist.model.PhoneNumber;
-import ro.jademy.contactlist.model.Contact;
+import ro.jademy.contactlist.model.*;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,7 +18,7 @@ public interface ContactService {
     void editContact(String firstName,
                      String lastName,
                      String email,
-                     Integer age, Map<String, PhoneNumber> phoneNumbers,
+                     Integer age, Map<PhoneTypes, PhoneNumber> phoneNumbers,
                      Address address,
                      String jobTitle,
                      Company company,
@@ -36,6 +34,8 @@ public interface ContactService {
 
     List<Contact> getFavorites();
 
-    void backupFile();
-    void restoreFromBackup(String source, String target);
+    Path backupsDir();
+    void doBackup();
+    void restoreFromBackup(String source);
+
 }

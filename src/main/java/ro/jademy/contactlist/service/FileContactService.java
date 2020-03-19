@@ -1,9 +1,6 @@
 package ro.jademy.contactlist.service;
 
-import ro.jademy.contactlist.model.Address;
-import ro.jademy.contactlist.model.Company;
-import ro.jademy.contactlist.model.Contact;
-import ro.jademy.contactlist.model.PhoneNumber;
+import ro.jademy.contactlist.model.*;
 
 import java.io.*;
 import java.nio.file.*;
@@ -17,12 +14,6 @@ public class FileContactService implements ContactService {
 
     public File getContactsFile() {
         return contactsFile;
-    }
-
-    private Path backupDir = Paths.get("backups");
-
-    public Path getBackupDir() {
-        return backupDir;
     }
 
     private List<Contact> contacts = new ArrayList<>();
@@ -49,15 +40,15 @@ public class FileContactService implements ContactService {
 
     @Override
     public Map<Character, List<Contact>> groupByInitial(List<Contact> list) {
-        return list.stream().sorted(Comparator.comparing((Contact contact1) -> contact1.getFirstName()).thenComparing(contact2 -> contact2.getLastName()))
+        return list.stream().sorted(Comparator.comparing(Contact::getFirstName).thenComparing(Contact::getLastName))
                 .collect(Collectors.groupingBy(contact -> contact.getFirstName().charAt(0), TreeMap::new,
                         Collectors.toList()));
     }
 
     @Override
     public List<Contact> getFavorites() {
-        return getContacts().stream().filter(fav -> fav.isFavorite())
-                .sorted(Comparator.comparing((Contact contact1) -> contact1.getFirstName()).thenComparing(contact2 -> contact2.getLastName()))
+        return getContacts().stream().filter(Contact::isFavorite)
+                .sorted(Comparator.comparing(Contact::getFirstName).thenComparing(Contact::getLastName))
                 .collect(Collectors.toList());
     }
 
@@ -69,15 +60,17 @@ public class FileContactService implements ContactService {
     @Override
     public void addContact(Contact contact, String number) {
         // add contact to contact list
-        contacts.add(contact);
+        Contact contactToAdd = new Contact(contact.getFirstName(), contact.getLastName(), contact.getEmail(),
+                contact.getPhoneNumbers(), contact.isFavorite(), getLastContactId() + 1);
+        contacts.add(contactToAdd);
 
         // overwrite the whole list of contacts in the file
         updateFile();
-        backupFile();
+        doBackup();
     }
 
     @Override
-    public void editContact(String firstName, String lastName, String email, Integer age, Map<String,
+    public void editContact(String firstName, String lastName, String email, Integer age, Map<PhoneTypes,
             PhoneNumber> phoneNumbers, Address address, String jobTitle, Company company, boolean isFavorite, int contactId) {
         Optional<Contact> contactOpt = getContactById(contactId);
 
@@ -87,7 +80,7 @@ public class FileContactService implements ContactService {
             
             // overwrite the whole list of contacts in the file
             updateFile();
-            backupFile();
+            doBackup();
         }
     }
 
@@ -103,7 +96,7 @@ public class FileContactService implements ContactService {
 
         // overwrite the whole list of contacts in the file
         updateFile();
-        backupFile();
+        doBackup();
     }
 
     @Override
@@ -119,14 +112,14 @@ public class FileContactService implements ContactService {
                 contact.getEmail().toLowerCase().contains(searchQuery.toLowerCase()))/* ||*/
 //                contact.getAge().toString().contains(searchInput) ||
 //                contact.getCompany().getName().toLowerCase().contains(searchInput.toLowerCase()))
-                .sorted(Comparator.comparing((Contact contact1) -> contact1.getFirstName()).thenComparing(contact2 -> contact2.getLastName()))
+                .sorted(Comparator.comparing(Contact::getFirstName).thenComparing(Contact::getLastName))
                 .collect(Collectors.toList());
     }
 
     private List<Contact> readFromFile() {
         if (!new File("contacts.csv").isFile()) {
             System.out.println("File \"contacts.csv\" not found!");
-            restoreFromBackup(fileForBackup(), "contacts.csv");
+            restoreFromBackup(fileForBackup());
             System.out.println("The file \"contacts.csv\" was created and restored from last backup.");
         }
 
@@ -149,13 +142,13 @@ public class FileContactService implements ContactService {
         int id = Integer.parseInt(fields.get(5));
 
         String[] phones = phonesList.split(">");
-        String key;
+        PhoneTypes key;
         String countryCode;
         String number;
-        Map<String, PhoneNumber> phonesNumbers = new LinkedHashMap<>();
+        Map<PhoneTypes, PhoneNumber> phonesNumbers = new LinkedHashMap<>();
         for (String phone : phones) {
             List<String> phoneNumbers = Arrays.asList(phone.split("_"));
-            key = phoneNumbers.get(0);
+            key = PhoneTypes.valueOf(phoneNumbers.get(0).toUpperCase());
             countryCode = phoneNumbers.get(1);
             number = phoneNumbers.get(2);
             phonesNumbers.put(key, new PhoneNumber(countryCode, number));
@@ -171,7 +164,7 @@ public class FileContactService implements ContactService {
             String phoneNumbers = "";
             bw.write("F_NAME|L_NAME|PHONE_NUMBERS|EMAIL|IS_FAVORITE|ID");
             for (Contact contact : contacts) {
-                for (Map.Entry<String, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
+                for (Map.Entry<PhoneTypes, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
                     phoneNumbers = contact.getPhoneNumbers().entrySet().stream()
                             .map(entry1 -> entry1.getKey() + "_" + entry1.getValue().getCountryCode() + "_" + entry1.getValue().getNumber())
                             .collect(Collectors.toList())
@@ -195,38 +188,20 @@ public class FileContactService implements ContactService {
         }
     }
 
-    public void addContactToFile(String firstName, String lastName, String phoneType, String countryCode,
-                                 String phoneNumber, String email,
-                                 boolean isFavorite, int contactId) {
-        BufferedWriter bw = null;
-        try {
-            bw = new BufferedWriter(new FileWriter("contacts.csv", true));
-            bw.newLine();
-            bw.write(firstName + "|" + lastName + "|" + phoneType + "_" + countryCode + "_" + phoneNumber + "|" + email +
-                    "|" + isFavorite + "|" + contactId);
-            bw.flush();
-        } catch (IOException ex) {
-            System.out.println("File not found\n" + ex);
-        } finally {
-            try {
-                if (bw != null) {
-                    bw.close();
-                }
-            } catch (IOException e) {
-                System.out.println("Could not close stream.");
-            }
-        }
+    @Override
+    public Path backupsDir() {
+        return Paths.get("backups");
     }
 
     @Override
-    public void backupFile() {
-        if (!new File("backups").isDirectory()) {
-            new File("backups").mkdir();
+    public void doBackup() {
+        if (!new File(backupsDir().toString()).isDirectory()) {
+            new File(backupsDir().toString()).mkdir();
         }
-        File[] backupFiles = backupDir.toFile().listFiles();
+        File[] backupFiles = backupsDir().toFile().listFiles();
         if (backupFiles != null) {
             Optional<File> earliestBackup =
-                    Arrays.stream(backupFiles).min(Comparator.comparingLong(file -> file.lastModified()));
+                    Arrays.stream(backupFiles).min(Comparator.comparingLong(File::lastModified));
             if (earliestBackup.isPresent() && backupFiles.length > 4) {
                 earliestBackup.get().delete();
             }
@@ -244,9 +219,9 @@ public class FileContactService implements ContactService {
     }
 
     @Override
-    public void restoreFromBackup(String source, String target) {
+    public void restoreFromBackup(String source) {
         Path sourcePath = Paths.get(source);
-        Path targetPath = Paths.get(target);
+        Path targetPath = Paths.get("contacts.csv");
         try {
             Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
@@ -255,28 +230,32 @@ public class FileContactService implements ContactService {
     }
 
     public String fileForBackup() {
-        if (!new File("backups").isDirectory()) {
-                new File("backups").mkdir();
+        if (!new File(backupsDir().toString()).isDirectory()) {
+                new File(backupsDir().toString()).mkdir();
             }
 
-        File backupsDir = new File("backups");
+        File backupsDir = new File(backupsDir().toString());
         if (backupsDir.isDirectory()) {
             if (backupsDir.exists() && backupsDir.list().length == 0) {
                 try {
-                    new File("backups/emptybackup.csv").createNewFile();
+                    new File(backupsDir().toString() + "/emptybackup.csv").createNewFile();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         }
-        File[] backupFiles = backupDir.toFile().listFiles();
+        File[] backupFiles = backupsDir().toFile().listFiles();
         if (backupFiles != null) {
             Optional<File> lastBackup =
-                    Arrays.stream(backupFiles).max(Comparator.comparingLong(file -> file.lastModified()));
+                    Arrays.stream(backupFiles).max(Comparator.comparingLong(File::lastModified));
             if (lastBackup.isPresent()) {
                 return lastBackup.get().toString();
             }
         }
         return null;
+    }
+
+    private int getLastContactId() {
+        return getContacts().stream().mapToInt(Contact::getContactId).summaryStatistics().getMax();
     }
 }

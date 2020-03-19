@@ -2,16 +2,17 @@ package ro.jademy.contactlist;
 
 import ro.jademy.contactlist.model.Contact;
 import ro.jademy.contactlist.model.PhoneNumber;
+import ro.jademy.contactlist.model.PhoneTypes;
 import ro.jademy.contactlist.service.ContactService;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class Menu {
 
@@ -36,8 +37,7 @@ public class Menu {
     }
 
     private void showPhoneTypeMenu() {
-        List<String> menuItems = Arrays.asList("1. Mobile", "2. Work", "3. Home",
-                "4. Other");
+        List<String> menuItems = Arrays.asList("1. Mobile", "2. Work", "3. Home");
         menu(menuItems);
     }
 
@@ -66,16 +66,13 @@ public class Menu {
                 case "2":
                     System.out.print("Search: ");
                     String searchRequest = sc.nextLine();
-                    contactService.getSearchResult(searchRequest, contactService.getContacts()).stream().forEach(entry -> System.out.println(entry));
+                    contactService.getSearchResult(searchRequest, contactService.getContacts()).forEach(System.out::println);
                     showPhoneBookMenu();
                     break;
                 case "3":
                     printContactsNaturalOrder();
                     System.out.print("\nYour option: ");
-                    while (!sc.hasNextInt()) {
-                        System.out.println("Please enter a valid option!");
-                        sc.next();
-                    }
+                    validateIntInsert();
                     int choice = sc.nextInt();
                     sc.nextLine();
                     if (contactService.getContactById(choice).isPresent()) {
@@ -86,7 +83,7 @@ public class Menu {
                     showPhoneBookMenu();
                     break;
                 case "4":
-                    contactService.getFavorites().stream().forEach(contact -> System.out.println(contact));
+                    contactService.getFavorites().forEach(System.out::println);
                     if (contactService.getFavorites().isEmpty()) {
                         System.out.println("\nNo favorite contact!");
                     }
@@ -95,22 +92,24 @@ public class Menu {
                 case "5":
                     System.out.print("First Name: ");
                     String firstName = sc.nextLine();
-                    String firstNameCapitalized =
-                            firstName.substring(0, 1).toUpperCase() + firstName.substring(1);
+                    try {
+                        firstName = firstName.substring(0, 1).toUpperCase() + firstName.substring(1);
+                    } catch (StringIndexOutOfBoundsException e) {
+                        System.out.println("No first name entered!");
+                    }
                     System.out.print("Last Name: ");
                     String lastName = sc.nextLine();
-                    String lastNameCapitalized = lastName.substring(0, 1).toUpperCase() + lastName.substring(1);
+                    try {
+                        lastName = lastName.substring(0, 1).toUpperCase() + lastName.substring(1);
+                    } catch (StringIndexOutOfBoundsException e) {
+                        System.out.println("No last name entered!");
+                    }
                     System.out.print("Email: ");
                     String email = sc.nextLine();
+                    validateEmail(email);
                     System.out.print("Phone Number: ");
                     String phoneNumber = sc.nextLine();
-                    int id = contactService.getContacts().stream().mapToInt(contact -> contact.getContactId()).summaryStatistics().getMax();
-                    Contact newContact = new Contact(firstNameCapitalized, lastNameCapitalized, email, new PhoneNumber(phoneNumber), false
-                            , id + 1);
-                    if (id < 0) {
-                        newContact = new Contact(firstNameCapitalized, lastNameCapitalized, email, new PhoneNumber(phoneNumber), false,
-                                id + 2147483647 + 2);
-                    }
+                    Contact newContact = new Contact(firstName, lastName, email, phoneNumber);
                     contactService.addContact(newContact, phoneNumber);
                     showPhoneBookMenu();
                     break;
@@ -119,13 +118,10 @@ public class Menu {
                     searchRequest = sc.nextLine();
                     List<Contact> contactsToEdit = new ArrayList<>(contactService.getSearchResult(searchRequest,
                             contactService.getContacts()));
-                    contactsToEdit.forEach(contact -> System.out.println(contact));
+                    contactsToEdit.forEach(System.out::println);
                     if (!contactsToEdit.isEmpty()) {
                         System.out.print("Contact to edit: ");
-                        while (!sc.hasNextInt()) {
-                            System.out.println("Please enter a valid option!");
-                            sc.next();
-                        }
+                        validateIntInsert();
                         choice = sc.nextInt();
                         sc.nextLine();
                         boolean isChecked = contactsToEdit.stream().anyMatch(contact -> choice == contact.getContactId());
@@ -152,22 +148,14 @@ public class Menu {
                 case "7":
                     printContactsNaturalOrder();
                     System.out.print("Your option: ");
-                    while (!sc.hasNextInt()) {
-                        System.out.println("Please enter a valid option!");
-                        sc.next();
-                    }
+                    validateIntInsert();
                     choice = sc.nextInt();
                     sc.nextLine();
                     if (contactService.getContactById(choice).isPresent()) {
                         System.out.println("Are you sure you want to delete the contact " +
                                 contactService.getContactById(choice).get().getFirstName() + " " +
                                 contactService.getContactById(choice).get().getLastName() + "?");
-                        String confirmation = sc.nextLine();
-                        while (!confirmation.equals("Y".toLowerCase()) && !confirmation.equals("N".toLowerCase())) {
-                            System.out.println("Please enter 'y' or 'n'!");
-                            confirmation = sc.nextLine();
-                        }
-                        if (confirmation.equals("Y".toLowerCase())) {
+                        if (validateConfirmation()) {
                             contactService.removeContact(choice);
                         }
                     } else {
@@ -187,13 +175,12 @@ public class Menu {
                         }
                         switch (option) {
                             case "1":
-                                contactService.backupFile();
+                                contactService.doBackup();
                                 break;
                             case "2":
                                 System.out.print("Backup date: ");
                                 String backupDate = sc.nextLine();
-                                Path backupDir = Paths.get("backups");
-                                File[] backupFiles = backupDir.toFile().listFiles();
+                                File[] backupFiles = contactService.backupsDir().toFile().listFiles();
                                 final Boolean[] isChecked = {false};
                                 Arrays.stream(Objects.requireNonNull(backupFiles)).sorted(Comparator.reverseOrder())
                                         .forEach(file -> {
@@ -213,7 +200,7 @@ public class Menu {
                                     System.out.print("Backup file: ");
                                     String backupFile = sc.nextLine();
                                     if (new File(backupFile).isFile()) {
-                                        contactService.restoreFromBackup(backupFile, "contacts.csv");
+                                        contactService.restoreFromBackup(backupFile);
                                         contactService.removeAllContacts();
                                         contactService.getContacts();
                                     } else {
@@ -234,7 +221,7 @@ public class Menu {
     private void printContactsNaturalOrder() {
         OptionalInt maxLength =
                 contactService.getContacts().stream().map(c1 -> (c1.getContactId() + c1.getFirstName() + c1.getLastName()))
-                        .mapToInt(s -> s.length())
+                        .mapToInt(String::length)
                         .max();
         for (Map.Entry<Character, List<Contact>> listEntry : contactService.groupByInitial(contactService.getContacts()).entrySet()) {
             if (maxLength.isPresent()) {
@@ -268,67 +255,73 @@ public class Menu {
                 case "1":
                     int count = 0;
                     int menuWidth = 0;
-                    String phoneKind;
-                    Map<Integer, String> phonesType = new LinkedHashMap<>();
+                    PhoneTypes phoneKind;
+                    Map<Integer, PhoneTypes> phonesType = new LinkedHashMap<>();
                     System.out.println("What number do you want to edit: ");
-                    for (Map.Entry<String, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
+                    for (Map.Entry<PhoneTypes, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
                         count++;
                         phonesType.put(count, entry.getKey());
                         menuWidth =
                                 phonesType.entrySet().stream().mapToInt(e -> (e.getKey() + ". " + e.getValue()).length()).summaryStatistics().getMax() + 5;
                     }
                     System.out.print("\033[32;1m+" + new String(new char[menuWidth]).replace('\0', '=') + "+\033[0m" + "\n");
-                    for (Map.Entry<Integer, String> entry : phonesType.entrySet()) {
-                        System.out.println("\033[32;1m|\033[0m" + " " + entry.getKey() + ". " + entry.getValue() +
+                    for (Map.Entry<Integer, PhoneTypes> entry : phonesType.entrySet()) {
+                        System.out.println("\033[32;1m|\033[0m" + " " + entry.getKey() + ". " + entry.getValue().getDisplayPhoneType() +
                                 new String(new char[menuWidth - (entry.getKey() + ". " + entry.getValue()).length() - 1]).replace('\0',
                                         ' ') + "\033[32;1m|\033[0m");
                     }
                     System.out.println(("\033[32;1m+" + new String(new char[menuWidth]).replace('\0', '=')) + "+\033[0m");
 
-                    while (!sc.hasNextInt()) {
-                        System.out.println("Please enter a valid option!");
-                        sc.next();
-                    }
+                    validateIntInsert();
                     int typeOfPhone = sc.nextInt();
                     sc.nextLine();
-                    for (Map.Entry<Integer, String> phoneEntry : phonesType.entrySet()) {
-                        if (typeOfPhone == phoneEntry.getKey()) {
+                    int phoneToEditType;
+                    for (Map.Entry<Integer, PhoneTypes> phoneEntry : phonesType.entrySet()) {
+                        phoneToEditType = phoneEntry.getKey();
+                        if (typeOfPhone == phoneToEditType) {
                             phoneKind = phoneEntry.getValue();
-                            System.out.print("Enter new number: ");
-                            String newNumber = sc.nextLine();
-                            for (Map.Entry<String, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
+                            for (Map.Entry<PhoneTypes, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
                                 if (phoneKind.equals(entry.getKey())) {
-                                    entry.getValue().setNumber(newNumber);
+                                    System.out.println("Do you want to edit country code?");
+                                    if (validateConfirmation()) {
+                                        System.out.print("Enter new country code: ");
+                                        String newCountryCode = sc.nextLine();
+                                        entry.getValue().setCountryCode(newCountryCode);
+                                    }
+                                    System.out.println("Do you want to edit number?");
+                                    if (validateConfirmation()) {
+                                        System.out.print("Enter new number: ");
+                                        String newNumber = sc.nextLine();
+                                        entry.getValue().setNumber(newNumber);
+                                    }
                                 }
                             }
-                        } else {
-                            System.out.println("No valid number!");
+
                         }
+                    }
+                    if (typeOfPhone < phonesType.keySet().stream().mapToInt(entry -> entry).summaryStatistics().getMin() ||
+                            typeOfPhone > phonesType.keySet().stream().mapToInt(entry -> entry).summaryStatistics().getMax()) {
+                        System.out.println("Invalid option");
                     }
                     break;
                 case "2":
-                    System.out.print("Enter phone number type (1-4): \n");
-                    String phoneType = "";
+                    System.out.print("Enter phone number type (1-3): \n");
+                    PhoneTypes phoneType = null;
                     showPhoneTypeMenu();
                     String choice = sc.nextLine();
-                    while (!choice.equals("1") && !choice.equals("2") && !choice.equals("3") && !choice.equals(
-                            "4")) {
-                        System.out.print("Invalid option!\nPlease enter your option again (1-4): ");
+                    while (!choice.equals("1") && !choice.equals("2") && !choice.equals("3")) {
+                        System.out.print("Invalid option!\nPlease enter your option again (1-3): ");
                         choice = sc.nextLine();
                     }
                     switch (choice) {
                         case "1":
-                            phoneType = "Mobile";
+                            phoneType = PhoneTypes.valueOf("Mobile".toUpperCase());
                             break;
                         case "2":
-                            phoneType = "Work";
+                            phoneType = PhoneTypes.valueOf("Work".toUpperCase());
                             break;
                         case "3":
-                            phoneType = "Home";
-                            break;
-                        case "4":
-                            System.out.print("Enter phone number type: ");
-                            phoneType = sc.nextLine();
+                            phoneType = PhoneTypes.valueOf("Home".toUpperCase());
                             break;
                     }
                     System.out.print("Enter country code: ");
@@ -340,75 +333,59 @@ public class Menu {
                 case "3":
                     count = 0;
                     menuWidth = 0;
-                    phonesType = new LinkedHashMap<>()
-                    ;
+                    phonesType = new LinkedHashMap<>();
+                    PhoneTypes keyToRemove = null;
                     System.out.println("What number do you want to remove: ");
-                    for (Map.Entry<String, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
+                    for (Map.Entry<PhoneTypes, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
                         count++;
                         phonesType.put(count, entry.getKey());
                         menuWidth =
                                 phonesType.entrySet().stream().mapToInt(e -> (e.getKey() + ". " + e.getValue()).length()).summaryStatistics().getMax() + 5;
                     }
                     System.out.print("\033[32;1m+" + new String(new char[menuWidth]).replace('\0', '=') + "+\033[0m" + "\n");
-                    for (Map.Entry<Integer, String> entry : phonesType.entrySet()) {
-                        System.out.println("\033[32;1m|\033[0m" + " " + entry.getKey() + ". " + entry.getValue() +
+                    for (Map.Entry<Integer, PhoneTypes> entry : phonesType.entrySet()) {
+                        System.out.println("\033[32;1m|\033[0m" + " " + entry.getKey() + ". " + entry.getValue().getDisplayPhoneType() +
                                 new String(new char[menuWidth - (entry.getKey() + ". " + entry.getValue()).length() - 1]).replace('\0',
                                         ' ') + "\033[32;1m|\033[0m");
                     }
                     System.out.println(("\033[32;1m+" + new String(new char[menuWidth]).replace('\0', '=')) + "+\033[0m");
 
-                    while (!sc.hasNextInt()) {
-                        System.out.println("Please enter a valid option!");
-                        sc.next();
-                    }
+                    validateIntInsert();
                     typeOfPhone = sc.nextInt();
                     sc.nextLine();
-                    for (Map.Entry<Integer, String> phoneEntry : phonesType.entrySet()) {
+                    boolean isChecked = false;
+                    for (Map.Entry<Integer, PhoneTypes> phoneEntry : phonesType.entrySet()) {
                         if (typeOfPhone == phoneEntry.getKey()) {
+                            isChecked = true;
                             phoneKind = phoneEntry.getValue();
-                            for (Map.Entry<String, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
+                            for (Map.Entry<PhoneTypes, PhoneNumber> entry : contact.getPhoneNumbers().entrySet()) {
                                 if (phoneKind.equals(entry.getKey())) {
-                                    System.out.println("Are you sure you want to delete the " + entry.getKey() + " " +
+                                    System.out.println("Are you sure you want to delete the " + entry.getKey().getDisplayPhoneType() + " " +
                                             "number?");
-                                    String confirmation = sc.nextLine();
-                                    while (!confirmation.equals("Y".toLowerCase()) && !confirmation.equals("N".toLowerCase())) {
-                                        System.out.println("Please enter 'y' or 'n'!");
-                                        confirmation = sc.nextLine();
-                                    }
-                                    if (confirmation.equals("Y".toLowerCase())) {
-                                        contact.getPhoneNumbers().remove(entry.getKey());
+                                    if (validateConfirmation()) {
+                                        keyToRemove = entry.getKey();
                                     }
                                 }
                             }
-                        } else {
-                            System.out.println("No valid number!");
+                            contact.getPhoneNumbers().remove(keyToRemove);
                         }
+                    }
+                    if (!isChecked) {
+                        System.out.println("No valid number!");
                     }
                     break;
                 case "4":
-                    String firstName = "";
-                    String lastName = "";
                     System.out.println("Do you want to edit the first name?");
-                    String confirmation = sc.nextLine();
-                    while (!confirmation.equals("Y".toLowerCase()) && !confirmation.equals("N".toLowerCase())) {
-                        System.out.println("Please enter 'y' or 'n'!");
-                        confirmation = sc.nextLine();
-                    }
-                    if (confirmation.equals("Y".toLowerCase())) {
-                        System.out.print("Enter first name: ");
-                        firstName = sc.nextLine();
-                        contact.setFirstName(firstName);
+                    if (validateConfirmation()) {
+                        System.out.println("Enter first name: ");
+                        String newFirstName = sc.nextLine();
+                        contact.setFirstName(newFirstName);
                     }
                     System.out.println("Do you want to edit the last name?");
-                    confirmation = sc.nextLine();
-                    while (!confirmation.equals("Y".toLowerCase()) && !confirmation.equals("N".toLowerCase())) {
-                        System.out.println("Please enter 'y' or 'n'!");
-                        confirmation = sc.nextLine();
-                    }
-                    if (confirmation.equals("Y".toLowerCase())) {
-                        System.out.print("Enter last name: ");
-                        lastName = sc.nextLine();
-                        contact.setLastName(lastName);
+                    if (validateConfirmation()) {
+                        System.out.println("Enter last name: ");
+                        String newLastName = sc.nextLine();
+                        contact.setLastName(newLastName);
                     }
                     break;
                 case "5":
@@ -430,7 +407,7 @@ public class Menu {
     }
 
     private void menu(List<String> menuItems) {
-        int menuWidth = menuItems.stream().mapToInt(entry -> entry.length()).summaryStatistics().getMax() + 5;
+        int menuWidth = menuItems.stream().mapToInt(String::length).summaryStatistics().getMax() + 5;
         String side = "\033[32;1m|\033[0m";
         System.out.print("\033[32;1m\n+" + new String(new char[menuWidth]).replace('\0', '=') + "+\033[0m" + "\n");
         for (String menuItem : menuItems) {
@@ -438,5 +415,32 @@ public class Menu {
                     ' ') + side);
         }
         System.out.print("\033[32;1m+" + new String(new char[menuWidth]).replace('\0', '=') + "+\033[0m" + "\n");
+    }
+
+    private void validateIntInsert() {
+        while (!sc.hasNextInt()) {
+            System.out.println("Please enter a valid option!");
+            sc.next();
+        }
+    }
+
+    private boolean validateConfirmation() {
+        boolean isValidated = false;
+        String confirmation = sc.nextLine();
+        while (!confirmation.equals("Y".toLowerCase()) && !confirmation.equals("N".toLowerCase())) {
+            System.out.println("Please enter 'y' or 'n'!");
+            confirmation = sc.nextLine();
+        }
+        if (confirmation.equals("Y".toLowerCase())) {
+            isValidated = true;
+        }
+        return isValidated;
+    }
+
+    private void validateEmail(String email) {
+        while (!Pattern.matches("^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$", email)) {
+            System.out.println("Enter a valid email:");
+            email = sc.nextLine();
+        }
     }
 }
